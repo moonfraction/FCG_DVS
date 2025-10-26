@@ -15,6 +15,9 @@ client = openai.OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=os.environ.get("GROQ_API_KEY")
 )
+from logger_utils import get_logger
+
+logger = get_logger()
 
 
 def format_sample_for_prompt(row, include_label=True):
@@ -130,11 +133,11 @@ def llm_predict(prompt, model="llama-3.1-8b-instant", temperature=0.1, max_retri
                 
         except Exception as e:
             if attempt < max_retries - 1:
-                print(f"  API error (attempt {attempt + 1}/{max_retries}): {e}")
+                logger.warning(f"  API error (attempt {attempt + 1}/{max_retries}): {e}")
                 time.sleep(2)  # Wait before retry
                 continue
             else:
-                print(f"  API failed after {max_retries} attempts: {e}")
+                logger.error(f"  API failed after {max_retries} attempts: {e}")
                 return 0  # Default prediction
     
     return 0
@@ -159,7 +162,7 @@ def llm_predict_batch(test_df, demonstrations=None, model="llama-3.1-8b-instant"
     if max_samples is not None:
         test_df = test_df.head(max_samples)
     
-    print(f"Predicting {len(test_df)} samples...")
+    logger.info(f"Predicting {len(test_df)} samples...")
     
     for idx, row in test_df.iterrows():
         # Create prompt
@@ -170,7 +173,7 @@ def llm_predict_batch(test_df, demonstrations=None, model="llama-3.1-8b-instant"
         predictions.append(pred)
         
         if (idx + 1) % 10 == 0:
-            print(f"  Processed {idx + 1}/{len(test_df)} samples")
+            logger.info(f"  Processed {idx + 1}/{len(test_df)} samples")
     
     return np.array(predictions)
 

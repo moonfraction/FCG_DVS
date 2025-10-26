@@ -4,6 +4,9 @@ Genetic algorithm evolution loop with score updates
 """
 from cal_score import cal_score_cached
 from genetic_algorithm import roulette_wheel_selection
+from logger_utils import get_logger
+
+logger = get_logger()
 
 
 def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
@@ -34,21 +37,21 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
     Returns:
         Updated subgroups_dict with evolved scores
     """
-    print("\n" + "="*60)
-    print("STEP 2: UPDATE EVOLUTION SCORE")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("STEP 2: UPDATE EVOLUTION SCORE")
+    logger.info("="*60)
     
     for subgroup_key, subgroup in subgroups_dict.items():
-        print(f"\nProcessing {subgroup_key}: {len(subgroup)} samples")
-        print(f"  Running {iterations} iterations with k={k_shots} shots")
+        logger.info(f"\nProcessing {subgroup_key}: {len(subgroup)} samples")
+        logger.info(f"  Running {iterations} iterations with k={k_shots} shots")
         
         # Skip if subgroup is empty or too small
         if len(subgroup) == 0:
-            print(f"  Skipping {subgroup_key} (empty)")
+            logger.info(f"  Skipping {subgroup_key} (empty)")
             continue
         
         if len(subgroup) < k_shots:
-            print(f"  Adjusting k_shots from {k_shots} to {len(subgroup)}")
+            logger.info(f"  Adjusting k_shots from {k_shots} to {len(subgroup)}")
             k_shots_actual = len(subgroup)
         else:
             k_shots_actual = k_shots
@@ -58,19 +61,19 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
         
         # Run genetic algorithm iterations
         for iteration in range(iterations):
-            print(f"\n  Iteration {iteration + 1}/{iterations}:")
+            logger.info(f"\n  Iteration {iteration + 1}/{iterations}:")
             
             # Select k demonstration samples using roulette wheel
             selected_indices = roulette_wheel_selection(subgroup, k_shots_actual)
             
             if len(selected_indices) == 0:
-                print("    No samples selected, skipping iteration")
+                logger.info("    No samples selected, skipping iteration")
                 continue
             
             # Get selected samples
             selected_samples = subgroup.df.iloc[selected_indices]
             
-            print(f"    Selected {len(selected_indices)} samples: {selected_indices}")
+            logger.info(f"    Selected {len(selected_indices)} samples: {selected_indices}")
             
             # Calculate evolution score
             evol_score = cal_score_cached(
@@ -88,14 +91,14 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
             # Update scores for selected samples
             subgroup.update_scores(selected_indices, evol_score)
             
-            print(f"    Evolution Score: {evol_score:.4f}")
-            print(f"    Updated scores for samples: {selected_indices}")
+            logger.info(f"    Evolution Score: {evol_score:.4f}")
+            logger.info(f"    Updated scores for samples: {selected_indices}")
         
         # Print final score distribution
-        print(f"\n  Final score distribution for {subgroup_key}:")
-        print(f"    Mean:   {subgroup.scores.mean():.4f}")
-        print(f"    Std:    {subgroup.scores.std():.4f}")
-        print(f"    Min:    {subgroup.scores.min():.4f}")
-        print(f"    Max:    {subgroup.scores.max():.4f}")
+        logger.info(f"\n  Final score distribution for {subgroup_key}:")
+        logger.info(f"    Mean:   {subgroup.scores.mean():.4f}")
+        logger.info(f"    Std:    {subgroup.scores.std():.4f}")
+        logger.info(f"    Min:    {subgroup.scores.min():.4f}")
+        logger.info(f"    Max:    {subgroup.scores.max():.4f}")
     
     return subgroups_dict

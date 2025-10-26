@@ -4,6 +4,9 @@ CAL_SCORE Function - Calculate Evolution Score based on prediction and fairness 
 import numpy as np
 from metrics import calculate_performance_metrics, calculate_equalized_odds
 from llm_utils import llm_predict_zero_shot, llm_predict_few_shot
+from logger_utils import get_logger
+
+logger = get_logger()
 
 
 def cal_score(selected_samples, dev_data, metric_pred='f1_score', metric_fair='ratio_eo', 
@@ -41,7 +44,7 @@ def cal_score(selected_samples, dev_data, metric_pred='f1_score', metric_fair='r
     z_dev = dev_subset['sex'].values
     
     # STEP 1: Get baseline (zero-shot) predictions
-    print("    Computing baseline (zero-shot) predictions...")
+    logger.info("    Computing baseline (zero-shot) predictions...")
     y_base = llm_predict_zero_shot(dev_subset, model=model, max_samples=max_dev_samples)
     
     # Calculate baseline metrics
@@ -51,7 +54,7 @@ def cal_score(selected_samples, dev_data, metric_pred='f1_score', metric_fair='r
     base_fair = base_metrics.get(metric_fair, 0.0)
     
     # STEP 2: Get ICL predictions with demonstrations
-    print("    Computing ICL predictions with demonstrations...")
+    logger.info("    Computing ICL predictions with demonstrations...")
     y_icl = llm_predict_few_shot(dev_subset, demonstrations=selected_samples, 
                                   model=model, max_samples=max_dev_samples)
     
@@ -67,9 +70,9 @@ def cal_score(selected_samples, dev_data, metric_pred='f1_score', metric_fair='r
     # STEP 4: Combine with weighted sum
     evol_score = alpha * delta_pred + (1 - alpha) * delta_fair
     
-    print(f"    Base: {metric_pred}={base_pred:.4f}, {metric_fair}={base_fair:.4f}")
-    print(f"    ICL:  {metric_pred}={icl_pred:.4f}, {metric_fair}={icl_fair:.4f}")
-    print(f"    Δ:    Δpred={delta_pred:.4f}, Δfair={delta_fair:.4f}")
+    logger.info(f"    Base: {metric_pred}={base_pred:.4f}, {metric_fair}={base_fair:.4f}")
+    logger.info(f"    ICL:  {metric_pred}={icl_pred:.4f}, {metric_fair}={icl_fair:.4f}")
+    logger.info(f"    Δ:    Δpred={delta_pred:.4f}, Δfair={delta_fair:.4f}")
     
     return evol_score
 
@@ -101,7 +104,7 @@ def cal_score_cached(selected_samples, dev_data, baseline_cache=None,
     
     # Get or compute baseline
     if baseline_cache is None or 'base_pred' not in baseline_cache:
-        print("    Computing baseline (zero-shot) predictions...")
+        logger.info("    Computing baseline (zero-shot) predictions...")
         y_base = llm_predict_zero_shot(dev_subset, model=model, max_samples=max_dev_samples)
         
         from metrics import evaluate_all_metrics
@@ -121,7 +124,7 @@ def cal_score_cached(selected_samples, dev_data, baseline_cache=None,
         base_fair = baseline_cache['base_fair']
     
     # Get ICL predictions
-    print("    Computing ICL predictions with demonstrations...")
+    logger.info("    Computing ICL predictions with demonstrations...")
     y_icl = llm_predict_few_shot(dev_subset, demonstrations=selected_samples,
                                   model=model, max_samples=max_dev_samples)
     
@@ -138,8 +141,8 @@ def cal_score_cached(selected_samples, dev_data, baseline_cache=None,
     # Combine
     evol_score = alpha * delta_pred + (1 - alpha) * delta_fair
     
-    print(f"    Base: {metric_pred}={base_pred:.4f}, {metric_fair}={base_fair:.4f}")
-    print(f"    ICL:  {metric_pred}={icl_pred:.4f}, {metric_fair}={icl_fair:.4f}")
-    print(f"    Δ:    Δpred={delta_pred:.4f}, Δfair={delta_fair:.4f}")
+    logger.info(f"    Base: {metric_pred}={base_pred:.4f}, {metric_fair}={base_fair:.4f}")
+    logger.info(f"    ICL:  {metric_pred}={icl_pred:.4f}, {metric_fair}={icl_fair:.4f}")
+    logger.info(f"    Δ:    Δpred={delta_pred:.4f}, Δfair={delta_fair:.4f}")
     
     return evol_score

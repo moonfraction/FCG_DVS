@@ -10,6 +10,9 @@ from evolution import step2_update_evol_score
 from genetic_algorithm import select_top_demonstrations
 from llm_utils import llm_predict_few_shot, llm_predict_zero_shot
 from metrics import evaluate_all_metrics, print_metrics
+from logger_utils import get_logger
+
+logger = get_logger()
 
 
 class FCGAlgorithm:
@@ -75,9 +78,9 @@ class FCGAlgorithm:
         """
         Load and split Adult dataset
         """
-        print("\n" + "="*60)
-        print("LOADING DATA")
-        print("="*60)
+        logger.info("\n" + "="*60)
+        logger.info("LOADING DATA")
+        logger.info("="*60)
         
         # Load Adult dataset
         dftr, dftst = loadAdult()
@@ -86,12 +89,12 @@ class FCGAlgorithm:
         self.train_data, self.dev_data = split_train_dev(dftr, dev_ratio=dev_ratio)
         self.test_data = dftst
         
-        print(f"Training samples: {len(self.train_data)}")
-        print(f"Dev samples:      {len(self.dev_data)}")
-        print(f"Test samples:     {len(self.test_data)}")
+        logger.info(f"Training samples: {len(self.train_data)}")
+        logger.info(f"Dev samples:      {len(self.dev_data)}")
+        logger.info(f"Test samples:     {len(self.test_data)}")
         
         # Create subgroups from training data
-        print("\nCreating subgroups based on sensitive feature and label...")
+        logger.info("\nCreating subgroups based on sensitive feature and label...")
         subgroups_raw = create_subgroups(
             self.train_data, 
             sensitive_feature=self.sensitive_feature,
@@ -104,7 +107,7 @@ class FCGAlgorithm:
             z_val = 1 if '1' in key[1] else 0  # Extract Z value from key
             y_val = int(key[-1])  # Extract Y value from key
             self.subgroups[key] = Subgroup(df, z_val, y_val, initial_score=self.p)
-            print(f"  {key}: {len(df)} samples (Z={z_val}, Y={y_val})")
+            logger.info(f"  {key}: {len(df)} samples (Z={z_val}, Y={y_val})")
         
         return self.train_data, self.dev_data, self.test_data
     
@@ -116,9 +119,9 @@ class FCGAlgorithm:
             raise ValueError("Must call load_data() before fit()")
         
         # STEP 1: Diverse Clustering
-        print("\n" + "="*60)
-        print("STEP 1: DIVERSE CLUSTERING")
-        print("="*60)
+        logger.info("\n" + "="*60)
+        logger.info("STEP 1: DIVERSE CLUSTERING")
+        logger.info("="*60)
         self.evolved_subgroups = step1_diverse_clustering(
             self.subgroups,
             n_clusters=self.n_clusters,
@@ -154,9 +157,9 @@ class FCGAlgorithm:
         if k_per_subgroup is None:
             k_per_subgroup = self.k_shots
         
-        print("\n" + "="*60)
-        print("SELECTING TOP DEMONSTRATIONS")
-        print("="*60)
+        logger.info("\n" + "="*60)
+        logger.info("SELECTING TOP DEMONSTRATIONS")
+        logger.info("="*60)
         
         self.top_demonstrations = []
         
@@ -164,12 +167,12 @@ class FCGAlgorithm:
             k_actual = min(k_per_subgroup, len(subgroup))
             top_samples = select_top_demonstrations(subgroup, k_shots=k_actual)
             self.top_demonstrations.append(top_samples)
-            print(f"{key}: Selected {len(top_samples)} top samples")
+            logger.info(f"{key}: Selected {len(top_samples)} top samples")
         
         # Combine all demonstrations
         self.top_demonstrations = pd.concat(self.top_demonstrations, ignore_index=True)
         
-        print(f"\nTotal demonstrations selected: {len(self.top_demonstrations)}")
+        logger.info(f"\nTotal demonstrations selected: {len(self.top_demonstrations)}")
         
         return self.top_demonstrations
     
@@ -183,9 +186,9 @@ class FCGAlgorithm:
         if self.top_demonstrations is None:
             raise ValueError("Must call select_demonstrations() before evaluate()")
         
-        print("\n" + "="*60)
-        print("EVALUATION ON TEST DATA")
-        print("="*60)
+        logger.info("\n" + "="*60)
+        logger.info("EVALUATION ON TEST DATA")
+        logger.info("="*60)
         
         # Limit test samples
         test_subset = self.test_data.head(max_test_samples) if len(self.test_data) > max_test_samples else self.test_data
@@ -194,13 +197,13 @@ class FCGAlgorithm:
         z_sensitive = test_subset[self.sensitive_feature].values
         
         # Zero-shot baseline
-        print("\n1. Zero-shot Baseline:")
+        logger.info("\n1. Zero-shot Baseline:")
         y_zero = llm_predict_zero_shot(test_subset, model=self.model, max_samples=max_test_samples)
         zero_metrics = evaluate_all_metrics(y_true, y_zero, z_sensitive)
         print_metrics(zero_metrics, prefix="Zero-shot ")
         
         # FCG with demonstrations
-        print("\n2. FCG with In-Context Learning:")
+        logger.info("\n2. FCG with In-Context Learning:")
         y_fcg = llm_predict_few_shot(
             test_subset, 
             demonstrations=self.top_demonstrations,
@@ -211,13 +214,13 @@ class FCGAlgorithm:
         print_metrics(fcg_metrics, prefix="FCG ")
         
         # Comparison
-        print("\n" + "="*60)
-        print("IMPROVEMENT OVER BASELINE")
-        print("="*60)
-        print(f"Accuracy:  {fcg_metrics['accuracy'] - zero_metrics['accuracy']:+.4f}")
-        print(f"F1-Score:  {fcg_metrics['f1_score'] - zero_metrics['f1_score']:+.4f}")
-        print(f"Δeo:       {zero_metrics['delta_eo'] - fcg_metrics['delta_eo']:+.4f} (lower is better)")
-        print(f"Reo:       {fcg_metrics['ratio_eo'] - zero_metrics['ratio_eo']:+.4f}")
+        logger.info("\n" + "="*60)
+        logger.info("IMPROVEMENT OVER BASELINE")
+        logger.info("="*60)
+        logger.info(f"Accuracy:  {fcg_metrics['accuracy'] - zero_metrics['accuracy']:+.4f}")
+        logger.info(f"F1-Score:  {fcg_metrics['f1_score'] - zero_metrics['f1_score']:+.4f}")
+        logger.info(f"Δeo:       {zero_metrics['delta_eo'] - fcg_metrics['delta_eo']:+.4f} (lower is better)")
+        logger.info(f"Reo:       {fcg_metrics['ratio_eo'] - zero_metrics['ratio_eo']:+.4f}")
         
         return {
             'zero_shot': zero_metrics,
@@ -238,10 +241,10 @@ def run_fcg_experiment(n_clusters=8, m_neighbors=5, k_shots=5, iterations=10,
         max_dev_samples: Max dev samples per evaluation
         max_test_samples: Max test samples for final evaluation
     """
-    print("\n" + "="*60)
-    print("FCG ALGORITHM EXPERIMENT")
-    print("Fairness via Clustering-Genetic for LLM Bias Mitigation")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("FCG ALGORITHM EXPERIMENT")
+    logger.info("Fairness via Clustering-Genetic for LLM Bias Mitigation")
+    logger.info("="*60)
     
     # Initialize FCG
     fcg = FCGAlgorithm(

@@ -5,6 +5,9 @@ Implements K-Means clustering to select diverse representative samples
 import numpy as np
 from sklearn.cluster import KMeans
 from scipy.spatial.distance import cdist
+from logger_utils import get_logger
+
+logger = get_logger()
 
 
 def diverse_clustering(subgroup, n_clusters=8, m_neighbors=5, random_state=42):
@@ -71,7 +74,7 @@ def step1_diverse_clustering(subgroups_dict, n_clusters=8, m_neighbors=5):
     selected_subgroups = {}
     
     for key, subgroup in subgroups_dict.items():
-        print(f"Processing {key}: {len(subgroup)} samples")
+        logger.info(f"Processing {key}: {len(subgroup)} samples")
         
         # Apply diverse clustering
         selected_indices = diverse_clustering(subgroup, n_clusters, m_neighbors)
@@ -93,6 +96,6 @@ def step1_diverse_clustering(subgroups_dict, n_clusters=8, m_neighbors=5):
         
         selected_subgroups[key] = selected_subgroup
         
-        print(f"  Selected {len(selected_indices)} diverse samples from {key}")
+    logger.info(f"  Selected {len(selected_indices)} diverse samples from {key}")
     
     return selected_subgroups

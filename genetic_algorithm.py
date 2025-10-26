@@ -2,6 +2,9 @@
 Genetic Algorithm with Roulette Wheel Selection
 """
 import numpy as np
+from logger_utils import get_logger
+
+logger = get_logger()
 
 
 def roulette_wheel_selection(subgroup, k_shots):
@@ -83,7 +86,7 @@ def genetic_algorithm(subgroup, k_shots=5, iterations=10, cal_score_func=None,
         # Update scores for selected samples
         subgroup.update_scores(selected_indices, evol_score)
         
-        print(f"  Iteration {iteration + 1}/{iterations}: EvolScore = {evol_score:.4f}")
+    logger.info(f"  Iteration {iteration + 1}/{iterations}: EvolScore = {evol_score:.4f}")
     
     return subgroup
 
