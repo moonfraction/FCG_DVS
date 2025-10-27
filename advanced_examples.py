@@ -159,7 +159,7 @@ def example_different_metrics():
         results_comparison[metric] = results
     
     # Compare results
-    print("\n" + "="*60)
+    print("="*60)
     print("COMPARISON ACROSS FAIRNESS METRICS")
     print("="*60)
     

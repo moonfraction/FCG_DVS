@@ -100,7 +100,7 @@ def main():
     data_ok = check_dataset()
     env_ok = check_env()
     
-    print("\n" + "="*60)
+    print("="*60)
     if deps_ok and data_ok and env_ok:
         print("✓ ALL CHECKS PASSED!")
         print("="*60)

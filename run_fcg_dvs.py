@@ -18,11 +18,65 @@ Setup:
 3. Run this script:
    python run_fcg_dvs.py
 """
+import os
+from datetime import datetime
 from fcg_main import FCGAlgorithm
 from llm_utils import init_llm_clients
 from logger_utils import get_logger
+from metrics import print_metrics
 
 logger = get_logger()
+
+
+def save_metrics_to_file(metrics_dict, filename_suffix):
+    """
+    Save metrics to a file in res/save/ directory
+    
+    Args:
+        metrics_dict: Dictionary of metrics (e.g., {'fcg': metrics, 'zero_shot': metrics})
+        filename_suffix: Suffix for the filename (e.g., '_withoutDVS' or '_withDVS')
+    """
+    # Create res/save directory if it doesn't exist
+    os.makedirs("res/save", exist_ok=True)
+    
+    # Generate timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filepath = f"res/save/file_{timestamp}{filename_suffix}.metrics"
+    
+    # Write metrics to file
+    with open(filepath, 'w') as f:
+        for key, metrics in metrics_dict.items():
+            # Write section header
+            f.write(f"\n{'='*60}\n")
+            f.write(f"{key.upper()} RESULTS\n")
+            f.write(f"{'='*60}\n\n")
+            
+            # Performance Metrics
+            f.write(f"Performance Metrics:\n")
+            f.write(f"  Accuracy:  {metrics.get('accuracy', 0):.4f}\n")
+            f.write(f"  Precision: {metrics.get('precision', 0):.4f}\n")
+            f.write(f"  Recall:    {metrics.get('recall', 0):.4f}\n")
+            f.write(f"  F1-Score:  {metrics.get('f1_score', 0):.4f}\n")
+            
+            # Demographic Parity
+            f.write(f"\nDemographic Parity:\n")
+            f.write(f"  DP_0:      {metrics.get('DP_0', 0):.4f}\n")
+            f.write(f"  DP_1:      {metrics.get('DP_1', 0):.4f}\n")
+            f.write(f"  Δdp:       {metrics.get('delta_dp', 0):.4f}\n")
+            f.write(f"  Rdp:       {metrics.get('ratio_dp', 0):.4f}\n")
+            
+            # Equalized Odds
+            f.write(f"\nEqualized Odds:\n")
+            f.write(f"  TPR_0:     {metrics.get('TPR_0', 0):.4f}\n")
+            f.write(f"  TPR_1:     {metrics.get('TPR_1', 0):.4f}\n")
+            f.write(f"  FPR_0:     {metrics.get('FPR_0', 0):.4f}\n")
+            f.write(f"  FPR_1:     {metrics.get('FPR_1', 0):.4f}\n")
+            f.write(f"  Δeo:       {metrics.get('delta_eo', 0):.4f}\n")
+            f.write(f"  Reo:       {metrics.get('ratio_eo', 0):.4f}\n")
+            f.write(f"\n")
+    
+    logger.info(f"Metrics saved to: {filepath}")
+    return filepath
 
 
 def run_fcg_dvs_experiment():
@@ -58,8 +112,7 @@ def run_fcg_dvs_experiment():
         'max_test_samples': 100,  # Total test samples
         'batch_size': 10,         # Test batch size (N)
         'k_neighbors': 5,         # Neighbors to retrieve per test sample
-        'L_iterations': 5,        # DVS refinement iterations
-        'use_fcg_baseline': True  # Also evaluate standard FCG for comparison
+        'L_iterations': 5         # DVS refinement iterations
     }
     
     logger.info("\nConfiguration:")
@@ -81,7 +134,7 @@ def run_fcg_dvs_experiment():
     )
     
     # Phase 1: FCG Global Optimization
-    logger.info("\n" + "="*70)
+    logger.info("="*70)
     logger.info("PHASE 1: FCG GLOBAL FAIRNESS OPTIMIZATION")
     logger.info("="*70)
     
@@ -96,8 +149,18 @@ def run_fcg_dvs_experiment():
     
     logger.info(f"\nPhase 1 Complete: Created optimized pool H_opt with {len(fcg.top_demonstrations)} samples")
     
+    # Evaluate FCG without DVS (baseline comparison)
+    logger.info("="*70)
+    logger.info("EVALUATING FCG WITHOUT DVS (Baseline)")
+    logger.info("="*70)
+    
+    fcg_without_dvs_results = fcg.evaluate(max_test_samples=config['max_test_samples'])
+    
+    # Save FCG without DVS metrics
+    save_metrics_to_file(fcg_without_dvs_results, '_withoutDVS')
+    
     # Phase 2: DVS Local Adaptive Selection + Evaluation
-    logger.info("\n" + "="*70)
+    logger.info("="*70)
     logger.info("PHASE 2: DVS LOCAL ADAPTIVE SELECTION")
     logger.info("="*70)
     
@@ -106,40 +169,44 @@ def run_fcg_dvs_experiment():
         batch_size=config['batch_size'],
         k_neighbors=config['k_neighbors'],
         L_iterations=config['L_iterations'],
-        use_fcg_baseline=config['use_fcg_baseline']
+        use_fcg_baseline=False  # Don't duplicate FCG evaluation, we already did it above
     )
     
+    # Save FCG with DVS metrics
+    save_metrics_to_file(results, '_withDVS')
+    
     # Summary
-    logger.info("\n" + "="*70)
+    logger.info("="*70)
     logger.info("EXPERIMENT COMPLETE")
     logger.info("="*70)
     
-    # logger.info("\nAPI Call Estimate:")
-    # n_batches = (config['max_test_samples'] + config['batch_size'] - 1) // config['batch_size']
-    # P = config['batch_size']  # DVS size
-    # L = config['L_iterations']
-    # N = config['batch_size']  # Test samples per batch
+    # Compare FCG without DVS vs with DVS
+    logger.info("="*70)
+    logger.info("COMPARISON: FCG vs FCG-DVS")
+    logger.info("="*70)
     
-    # # DVS calls: For each batch: L iterations * (P DVS samples * ~|C| avg) + N test predictions
-    # # Rough estimate assuming avg |C| ~ 11
-    # calls_per_batch = L * P * 11 + N
-    # total_calls = n_batches * calls_per_batch
+    fcg_metrics = fcg_without_dvs_results['fcg']
+    dvs_metrics = results['fcg_dvs']
     
-    # logger.info(f"  Batches: {n_batches}")
-    # logger.info(f"  Estimated calls per batch: ~{calls_per_batch}")
-    # logger.info(f"  Total estimated calls: ~{total_calls}")
+    logger.info("\nPerformance Comparison:")
+    logger.info(f"  Accuracy:  FCG={fcg_metrics['accuracy']:.4f} | FCG-DVS={dvs_metrics['accuracy']:.4f} | Δ={dvs_metrics['accuracy']-fcg_metrics['accuracy']:+.4f}")
+    logger.info(f"  F1-Score:  FCG={fcg_metrics['f1_score']:.4f} | FCG-DVS={dvs_metrics['f1_score']:.4f} | Δ={dvs_metrics['f1_score']-fcg_metrics['f1_score']:+.4f}")
     
-    # if config['use_fcg_baseline']:
-    #     fcg_calls = config['max_test_samples']
-    #     logger.info(f"  FCG baseline calls: {fcg_calls}")
-    #     logger.info(f"  Grand total: ~{total_calls + fcg_calls}")
+    logger.info("\nFairness Comparison (Demographic Parity):")
+    logger.info(f"  Δdp:       FCG={fcg_metrics['delta_dp']:.4f} | FCG-DVS={dvs_metrics['delta_dp']:.4f} | Δ={fcg_metrics['delta_dp']-dvs_metrics['delta_dp']:+.4f} (lower is better)")
+    logger.info(f"  Rdp:       FCG={fcg_metrics['ratio_dp']:.4f} | FCG-DVS={dvs_metrics['ratio_dp']:.4f} | Δ={dvs_metrics['ratio_dp']-fcg_metrics['ratio_dp']:+.4f}")
     
-    return fcg, results
+    logger.info("\nFairness Comparison (Equalized Odds):")
+    logger.info(f"  Δeo:       FCG={fcg_metrics['delta_eo']:.4f} | FCG-DVS={dvs_metrics['delta_eo']:.4f} | Δ={fcg_metrics['delta_eo']-dvs_metrics['delta_eo']:+.4f} (lower is better)")
+    logger.info(f"  Reo:       FCG={fcg_metrics['ratio_eo']:.4f} | FCG-DVS={dvs_metrics['ratio_eo']:.4f} | Δ={dvs_metrics['ratio_eo']-fcg_metrics['ratio_eo']:+.4f}")
+    
+    # Return both results
+    return fcg, {'without_dvs': fcg_without_dvs_results, 'with_dvs': results}
 
 
 if __name__ == "__main__":
     fcg_instance, experiment_results = run_fcg_dvs_experiment()
     
-    print("\n" + "="*70)
+    print("="*70)
     print("Results saved. Check the log file in res/ for detailed output.")
     print("="*70)
