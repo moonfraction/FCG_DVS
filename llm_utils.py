@@ -165,7 +165,8 @@ def llm_predict_batch(test_df, demonstrations=None, model="llama-3.1-8b-instant"
     
     logger.info(f"Predicting {len(test_df)} samples...")
     
-    for idx, row in test_df.iterrows():
+    # Use enumerate to track processed count instead of DataFrame index values
+    for i, (_, row) in enumerate(test_df.iterrows(), start=1):
         # Create prompt
         prompt = create_prompt(demonstrations=demonstrations, test_sample=row)
         
@@ -173,8 +174,9 @@ def llm_predict_batch(test_df, demonstrations=None, model="llama-3.1-8b-instant"
         pred = llm_predict(prompt, model=model)
         predictions.append(pred)
         
-        if (idx + 1) % 10 == 0:
-            logger.info(f"  Processed {idx + 1}/{len(test_df)} samples")
+        # Log every 10 items and at the end
+        if (i % 10 == 0) or (i == len(test_df)):
+            logger.info(f"  Processed {i}/{len(test_df)} samples")
     
     return np.array(predictions)
 
