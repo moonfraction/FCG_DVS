@@ -201,8 +201,17 @@ class FCGAlgorithm:
         logger.info("EVALUATION ON TEST DATA")
         logger.info("="*60)
         
-        # Limit test samples
-        test_subset = self.test_data.head(max_test_samples) if len(self.test_data) > max_test_samples else self.test_data
+        # Check if test_subset.csv exists and load it, otherwise create the subset
+        try:
+            test_subset = pd.read_csv("test_subset.csv")
+            print("Test subset loaded from test_subset.csv")
+        except FileNotFoundError:
+            # Limit test samples
+            test_subset = self.test_data.head(max_test_samples) if len(self.test_data) > max_test_samples else self.test_data
+            
+            # Save 
+            test_subset.to_csv("test_subset.csv", index=False)
+            print("Test subset saved to test_subset.csv")
         
         y_true = test_subset[self.label].values
         z_sensitive = test_subset[self.sensitive_feature].values
@@ -293,6 +302,6 @@ if __name__ == "__main__":
         m_neighbors=5,
         k_shots=5,
         iterations=10,
-        max_dev_samples=50,
+        max_dev_samples=40,
         max_test_samples=100
     )

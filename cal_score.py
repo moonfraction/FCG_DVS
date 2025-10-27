@@ -1,6 +1,8 @@
 """
 CAL_SCORE Function - Calculate Evolution Score based on prediction and fairness improvements
 """
+import os
+import pandas as pd
 import numpy as np
 from metrics import calculate_performance_metrics, calculate_equalized_odds
 from llm_utils import llm_predict_zero_shot, llm_predict_few_shot
@@ -94,10 +96,22 @@ def cal_score_cached(selected_samples, dev_data, baseline_cache=None,
         Evolution score (float)
     """
     # Limit dev samples for efficiency
-    if len(dev_data) > max_dev_samples:
-        dev_subset = dev_data.sample(n=max_dev_samples, random_state=42)
+    
+    # Check if dev_subset.csv already exists
+    if os.path.exists("dev_subset.csv"):
+        # Load existing subset
+        dev_subset = pd.read_csv("dev_subset.csv")
+        logger.info("    Dev subset loaded from dev_subset.csv")
     else:
-        dev_subset = dev_data
+        # Create new subset
+        if len(dev_data) > max_dev_samples:
+            dev_subset = dev_data.sample(n=max_dev_samples, random_state=42)
+        else:
+            dev_subset = dev_data
+        
+        # Save for future use
+        dev_subset.to_csv("dev_subset.csv", index=False)
+        logger.info("    Dev subset created and saved to dev_subset.csv")
     
     # Extract true labels and sensitive attributes
     y_dev = dev_subset['income'].values
