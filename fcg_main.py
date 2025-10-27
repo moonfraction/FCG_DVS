@@ -246,6 +246,148 @@ class FCGAlgorithm:
             'zero_shot': zero_metrics,
             'fcg': fcg_metrics
         }
+    
+    def evaluate_with_dvs(self, max_test_samples=100, batch_size=10, k_neighbors=5, 
+                         L_iterations=5, use_fcg_baseline=True):
+        """
+        Evaluate using FCG-DVS hybrid approach
+        
+        Phase 1: FCG creates global optimized pool (already done in fit())
+        Phase 2: DVS adaptively selects ICE for each test batch
+        
+        Args:
+            max_test_samples: Maximum test samples to evaluate
+            batch_size: Size of each test batch (N in the algorithm)
+            k_neighbors: Number of neighbors to retrieve per test sample
+            L_iterations: Number of DVS refinement iterations
+            use_fcg_baseline: If True, also run FCG (non-DVS) for comparison
+        
+        Returns:
+            dict with evaluation metrics
+        """
+        from dvs_utils import init_gemini, embed_dataframe, create_batch_support_sets, create_dvs_and_candidates
+        from dvs_ice_selection import select_ice_iterative
+        
+        if self.top_demonstrations is None:
+            raise ValueError("Must call select_demonstrations() before evaluate_with_dvs()")
+        
+        logger.info("="*60)
+        logger.info("FCG-DVS HYBRID EVALUATION")
+        logger.info("="*60)
+        
+        # Load or create test subset
+        try:
+            test_subset = pd.read_csv("test_subset.csv")
+            logger.info("Test subset loaded from test_subset.csv")
+        except FileNotFoundError:
+            test_subset = self.test_data.head(max_test_samples) if len(self.test_data) > max_test_samples else self.test_data
+            test_subset.to_csv("test_subset.csv", index=False)
+            logger.info("Test subset saved to test_subset.csv")
+        
+        # Initialize Gemini API
+        try:
+            init_gemini()
+        except Exception as e:
+            logger.error(f"Failed to initialize Gemini API: {e}")
+            logger.info("Falling back to standard FCG evaluation")
+            return self.evaluate(max_test_samples=max_test_samples)
+        
+        # Phase 1: Embed the FCG-optimized pool (H_opt)
+        logger.info("Phase 1: Embedding FCG-optimized pool...")
+        pool_cache_path = f"data/embeddings/fcg_pool_{len(self.top_demonstrations)}.pkl"
+        pool_embeddings = embed_dataframe(self.top_demonstrations, cache_path=pool_cache_path)
+        
+        # Phase 2: Process test data in batches
+        logger.info(f"Phase 2: Processing {len(test_subset)} test samples in batches of {batch_size}")
+        
+        n_batches = (len(test_subset) + batch_size - 1) // batch_size
+        all_predictions_dvs = []
+        all_predictions_fcg = [] if use_fcg_baseline else None
+        
+        for batch_idx in range(n_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = min((batch_idx + 1) * batch_size, len(test_subset))
+            batch_df = test_subset.iloc[start_idx:end_idx].reset_index(drop=True)
+            
+            logger.info(f"\nBatch {batch_idx + 1}/{n_batches} (samples {start_idx}-{end_idx}):")
+            
+            # 2a: Create support sets (S_n)
+            support_info = create_batch_support_sets(
+                batch_df,
+                self.top_demonstrations,
+                pool_embeddings,
+                k=k_neighbors,
+                cache_dir='data/embeddings'
+            )
+            
+            # 2b: Create DVS (P_n) and candidate pool (H_n)
+            dvs_info = create_dvs_and_candidates(batch_df, self.top_demonstrations, support_info)
+            
+            # 2c: Iterative ICE selection
+            ice_result = select_ice_iterative(
+                batch_df,
+                dvs_info['dvs_df'],
+                dvs_info['candidate_df'],
+                support_info['support_indices'],
+                self.top_demonstrations,
+                L=L_iterations,
+                model=self.model,
+                alpha=self.alpha,
+                metric_pred=self.metric_pred,
+                metric_fair=self.metric_fair
+            )
+            
+            best_ice_df = ice_result['best_ice_df']
+            
+            # 2d: Predict on this batch using the selected ICE
+            logger.info(f"  Predicting on batch with |ICE| = {len(best_ice_df)}")
+            batch_preds = llm_predict_few_shot(
+                batch_df,
+                demonstrations=best_ice_df,
+                model=self.model,
+                max_samples=len(batch_df)
+            )
+            all_predictions_dvs.extend(batch_preds.tolist())
+            
+            # Optional: Also get FCG predictions for comparison
+            if use_fcg_baseline:
+                batch_preds_fcg = llm_predict_few_shot(
+                    batch_df,
+                    demonstrations=self.top_demonstrations,
+                    model=self.model,
+                    max_samples=len(batch_df)
+                )
+                all_predictions_fcg.extend(batch_preds_fcg.tolist())
+        
+        # Evaluate DVS results
+        y_true = test_subset[self.label].values
+        z_sensitive = test_subset[self.sensitive_feature].values
+        
+        dvs_metrics = evaluate_all_metrics(y_true, np.array(all_predictions_dvs), z_sensitive)
+        
+        logger.info("="*60)
+        logger.info("FCG-DVS RESULTS")
+        logger.info("="*60)
+        print_metrics(dvs_metrics, prefix="FCG-DVS ")
+        
+        results = {'fcg_dvs': dvs_metrics}
+        
+        # Optional FCG baseline comparison
+        if use_fcg_baseline:
+            fcg_metrics = evaluate_all_metrics(y_true, np.array(all_predictions_fcg), z_sensitive)
+            logger.info("\nFCG (Standard) Results:")
+            print_metrics(fcg_metrics, prefix="FCG ")
+            results['fcg'] = fcg_metrics
+            
+            logger.info("="*60)
+            logger.info("FCG-DVS vs FCG IMPROVEMENT")
+            logger.info("="*60)
+            logger.info(f"Accuracy:  {dvs_metrics['accuracy'] - fcg_metrics['accuracy']:+.4f}")
+            logger.info(f"F1-Score:  {dvs_metrics['f1_score'] - fcg_metrics['f1_score']:+.4f}")
+            logger.info(f"Δeo:       {fcg_metrics['delta_eo'] - dvs_metrics['delta_eo']:+.4f} (lower is better)")
+            logger.info(f"Reo:       {dvs_metrics['ratio_eo'] - fcg_metrics['ratio_eo']:+.4f}")
+        
+        return results
 
 
 def run_fcg_experiment(n_clusters=8, m_neighbors=5, k_shots=5, iterations=10,
