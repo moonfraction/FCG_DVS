@@ -11,9 +11,14 @@ import time
 load_dotenv()
 
 # Initialize Groq client
+# client = openai.OpenAI(
+#     base_url="https://api.groq.com/openai/v1",
+#     api_key=os.environ.get("GROQ_API_KEY")
+# )
+
 client = openai.OpenAI(
-    base_url="https://api.groq.com/openai/v1",
-    api_key=os.environ.get("GROQ_API_KEY")
+    base_url="https://api.cerebras.ai/v1",
+    api_key=os.environ.get("CEREBRAS_API_KEY")
 )
 from logger_utils import get_logger
 
@@ -121,6 +126,7 @@ def llm_predict(prompt, model="llama-3.1-8b-instant", temperature=0.0, max_retri
             )
             
             prediction_text = response.choices[0].message.content.strip().lower()
+            print(f"  Prediction (attempt {attempt + 1}): {prediction_text}")
             
             # Parse prediction
             if "greater than 50k" in prediction_text or ">50k" in prediction_text:

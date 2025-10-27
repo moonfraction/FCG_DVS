@@ -267,7 +267,7 @@ def run_fcg_experiment(n_clusters=8, m_neighbors=5, k_shots=5, iterations=10,
         p=0.05,
         metric_pred='f1_score',
         metric_fair='ratio_eo',
-        model="llama-3.1-8b-instant",
+        model="llama-3.3-70b",
         max_dev_samples=max_dev_samples
     )
     
