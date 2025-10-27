@@ -333,8 +333,7 @@ class FCGAlgorithm:
                 L=L_iterations,
                 model=self.model,
                 alpha=self.alpha,
-                metric_pred=self.metric_pred,
-                metric_fair=self.metric_fair
+                metric_pred=self.metric_pred
             )
             
             best_ice_df = ice_result['best_ice_df']

@@ -50,7 +50,7 @@ def run_fcg_dvs_experiment():
         'alpha': 0.5,           # Balance: pred vs fairness
         'p': 0.05,              # Initial score threshold
         'metric_pred': 'f1_score',
-        'metric_fair': 'ratio_eo',
+        'metric_fair': 'ratio_dp',  # For FCG Phase 1 only (DVS Phase 2 uses demographic parity difference)
         'model': 'llama-3.3-70b',
         'max_dev_samples': 40,  # Dev samples for FCG evolution
         

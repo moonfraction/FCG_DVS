@@ -11,54 +11,75 @@ from logger_utils import get_logger
 logger = get_logger()
 
 
-def compute_error(y_true, y_pred, z_sensitive, alpha=0.5, metric_pred='f1_score', metric_fair='ratio_eo'):
+def compute_error(y_true, y_pred, z_sensitive, alpha=0.5, metric_pred='f1_score'):
     """
-    Compute combined prediction + fairness error
+    Compute combined performance + fairness error
     
-    ERROR = alpha * (1 - pred_metric) + (1 - alpha) * (1 - fair_metric)
+    Performance error π = 1 - performance_metric
+    Fairness error ψ = |P(ŷ=1|z=0) - P(ŷ=1|z=1)| (demographic parity difference)
+    
+    E = α · π + (1 - α) · ψ
+    
+    Ideal E = 0 (perfect performance and fairness)
     
     Args:
         y_true: True labels
         y_pred: Predicted labels
-        z_sensitive: Sensitive attribute values
-        alpha: Balance coefficient
-        metric_pred: Performance metric name
-        metric_fair: Fairness metric name
+        z_sensitive: Sensitive attribute values (0 or 1)
+        alpha: Balance coefficient (0 to 1)
+               - Higher α emphasizes performance
+               - Lower α emphasizes fairness
+        metric_pred: Performance metric name (default: 'f1_score')
     
     Returns:
-        Combined error score (lower is better)
+        Combined error score E (lower is better, ideal is 0)
     """
+    y_pred = np.array(y_pred)
+    z_sensitive = np.array(z_sensitive)
+    
+    # Calculate performance metrics
     metrics = evaluate_all_metrics(y_true, y_pred, z_sensitive)
-    
     pred_score = metrics.get(metric_pred, 0.0)
-    fair_score = metrics.get(metric_fair, 0.0)
     
-    # Convert to error (1 - score)
-    pred_error = 1.0 - pred_score
-    fair_error = 1.0 - fair_score
+    # Performance error: π = 1 - performance_metric
+    performance_error = 1.0 - pred_score
     
-    # Combine
-    total_error = alpha * pred_error + (1 - alpha) * fair_error
+    # Fairness error: ψ = |P(ŷ=1|z=0) - P(ŷ=1|z=1)|
+    # Calculate P(ŷ=1|z=0)
+    z0_mask = (z_sensitive == 0)
+    p_pos_z0 = np.mean(y_pred[z0_mask]) if np.sum(z0_mask) > 0 else 0.0
+    
+    # Calculate P(ŷ=1|z=1)
+    z1_mask = (z_sensitive == 1)
+    p_pos_z1 = np.mean(y_pred[z1_mask]) if np.sum(z1_mask) > 0 else 0.0
+    
+    # Fairness error as absolute difference
+    fairness_error = abs(p_pos_z0 - p_pos_z1)
+    
+    # Combined error: E = α · π + (1 - α) · ψ
+    total_error = alpha * performance_error + (1 - alpha) * fairness_error
     
     return total_error
 
 
 def compute_individual_error(dvs_df, core_set_df, model="llama-3.3-70b", alpha=0.5, 
-                            metric_pred='f1_score', metric_fair='ratio_eo', start_client_idx=0):
+                            metric_pred='f1_score', start_client_idx=0):
     """
     Compute individual error I_{n,j} for a single core set on the DVS
+    
+    I_{n,j} = α · π + (1 - α) · ψ
+    where π = performance error, ψ = fairness error
     
     Args:
         dvs_df: Dynamic Validation Set (P_n)
         core_set_df: Core set C_{n,j} for a single test example
         model: LLM model name
-        alpha: Balance coefficient
-        metric_pred: Performance metric
-        metric_fair: Fairness metric
+        alpha: Balance coefficient (0 to 1)
+        metric_pred: Performance metric (default: 'f1_score')
         start_client_idx: Starting API key index
     
     Returns:
-        Individual error score
+        Individual error score (lower is better)
     """
     if len(dvs_df) == 0:
         return 1.0  # Maximum error if no DVS
@@ -76,37 +97,42 @@ def compute_individual_error(dvs_df, core_set_df, model="llama-3.3-70b", alpha=0
         start_client_idx=start_client_idx
     )
     
-    # Compute error
-    error = compute_error(y_true, y_pred, z_sensitive, alpha, metric_pred, metric_fair)
+    # Compute error using new formulation
+    error = compute_error(y_true, y_pred, z_sensitive, alpha, metric_pred)
     
     return error
 
 
 def compute_total_error(dvs_df, combined_ice_df, model="llama-3.3-70b", alpha=0.5,
-                       metric_pred='f1_score', metric_fair='ratio_eo', start_client_idx=0):
+                       metric_pred='f1_score', start_client_idx=0):
     """
     Compute total error T_n for the combined ICE set on the DVS
+    
+    T_n = α · π + (1 - α) · ψ
+    where π = performance error, ψ = fairness error
     
     Args:
         dvs_df: Dynamic Validation Set (P_n)
         combined_ice_df: Combined ICE set C_n (union of all core sets)
         model: LLM model name
-        alpha: Balance coefficient
-        metric_pred: Performance metric
-        metric_fair: Fairness metric
+        alpha: Balance coefficient (0 to 1)
+        metric_pred: Performance metric (default: 'f1_score')
         start_client_idx: Starting API key index
     
     Returns:
-        Total error score
+        Total error score (lower is better)
     """
-    return compute_individual_error(dvs_df, combined_ice_df, model, alpha, metric_pred, metric_fair, start_client_idx)
+    return compute_individual_error(dvs_df, combined_ice_df, model, alpha, metric_pred, start_client_idx)
 
 
 def select_ice_iterative(batch_df, dvs_df, candidate_df, support_indices_list, pool_df,
                          L=5, model="llama-3.3-70b", alpha=0.5,
-                         metric_pred='f1_score', metric_fair='ratio_eo', start_client_idx=0):
+                         metric_pred='f1_score', start_client_idx=0):
     """
     Iterative ICE selection using DVS (Algorithm 2)
+    
+    Uses error formulation: E = α · π + (1 - α) · ψ
+    where π = performance error, ψ = fairness error (demographic parity)
     
     Args:
         batch_df: Test batch (B_n)
@@ -116,9 +142,10 @@ def select_ice_iterative(batch_df, dvs_df, candidate_df, support_indices_list, p
         pool_df: Full FCG-optimized pool (for indexing)
         L: Number of iterations
         model: LLM model name
-        alpha: Balance coefficient
-        metric_pred: Performance metric
-        metric_fair: Fairness metric
+        alpha: Balance coefficient (0 to 1)
+               - Higher α emphasizes performance
+               - Lower α emphasizes fairness
+        metric_pred: Performance metric (default: 'f1_score')
         start_client_idx: Starting API key index
     
     Returns:
@@ -172,7 +199,6 @@ def select_ice_iterative(batch_df, dvs_df, candidate_df, support_indices_list, p
                     model=model,
                     alpha=alpha,
                     metric_pred=metric_pred,
-                    metric_fair=metric_fair,
                     start_client_idx=start_client_idx
                 )
             individual_errors.append(i_error)
@@ -191,7 +217,6 @@ def select_ice_iterative(batch_df, dvs_df, candidate_df, support_indices_list, p
                 model=model,
                 alpha=alpha,
                 metric_pred=metric_pred,
-                metric_fair=metric_fair,
                 start_client_idx=start_client_idx
             )
         
