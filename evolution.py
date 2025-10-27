@@ -89,6 +89,7 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
                 model=model,
                 max_dev_samples=max_dev_samples
             )
+
             
             # Update scores for selected samples
             subgroup.update_scores(selected_indices, evol_score)

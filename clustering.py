@@ -41,21 +41,50 @@ def diverse_clustering(subgroup, n_clusters=8, m_neighbors=5, random_state=42):
     kmeans.fit(X)
     
     centroids = kmeans.cluster_centers_
+
+    # Target number of unique samples to return (can't exceed dataset size)
+    target = min(n_clusters * m_neighbors, len(X))
+
     selected_idx_set = []
-    
-    # For each centroid, find m closest samples
-    for center in centroids:
-        # Calculate distances from all points to this centroid
-        distances = cdist([center], X, metric='euclidean')[0]
-        
-        # Get indices of m closest samples
-        closest_indices = np.argsort(distances)[:m_neighbors]
-        
-        # Add to selected set (avoid duplicates)
-        for idx in closest_indices:
+
+    # Preferred selection: choose up to m_neighbors from each cluster's own members
+    labels = kmeans.labels_
+    for cluster_id in range(actual_clusters):
+        members = np.where(labels == cluster_id)[0]
+        if len(members) == 0:
+            continue
+
+        # Distances from this centroid to its member points
+        member_distances = cdist([centroids[cluster_id]], X[members], metric='euclidean')[0]
+        # Sort members by distance to centroid and pick up to m_neighbors unique ones
+        sorted_members = members[np.argsort(member_distances)]
+        count = 0
+        for idx in sorted_members:
             if idx not in selected_idx_set:
-                selected_idx_set.append(idx)
-    
+                selected_idx_set.append(int(idx))
+                count += 1
+                if count >= m_neighbors:
+                    break
+
+        # Stop early if we've reached the target
+        if len(selected_idx_set) >= target:
+            break
+
+    # If we didn't get enough unique samples (e.g., some clusters are tiny and overlap),
+    # backfill by adding the remaining nearest unselected points (by distance to nearest centroid)
+    if len(selected_idx_set) < target:
+        # Compute distance from each point to its nearest centroid
+        all_dists = cdist(centroids, X, metric='euclidean')
+        nearest_dists = np.min(all_dists, axis=0)
+
+        # Sort all indices by distance to nearest centroid, add unselected ones until target reached
+        all_sorted = np.argsort(nearest_dists)
+        for idx in all_sorted:
+            if len(selected_idx_set) >= target:
+                break
+            if int(idx) not in selected_idx_set:
+                selected_idx_set.append(int(idx))
+
     return selected_idx_set
 
 
