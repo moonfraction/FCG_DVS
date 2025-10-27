@@ -47,21 +47,11 @@ def loadAdult():
     return dftr, dftst
 
 
-def convertAdultIncome(dfin):
-    """
-    Convert income labels to readable format
-    """
-    df = dfin.copy(deep=True)
-    df.rename(columns={'income': 'income answer'}, inplace=True)
-    df['income answer'] = df['income answer'].replace('<=50K', 'less than or equal to 50K')
-    df['income answer'] = df['income answer'].replace('>50K', 'greater than 50K')
-    return df
-
-
 def create_subgroups(df, sensitive_feature='sex', label='income'):
     """
     Split data into 4 subgroups based on sensitive feature Z and label Y
     SG = {g1(Z=1,Y=0), g2(Z=1,Y=1), g3(Z=0,Y=0), g4(Z=0,Y=1)}
+    aliases: g1: g10, g2: g11, g3: g00, g4: g01
     
     Args:
         df: DataFrame with features and labels
@@ -77,10 +67,10 @@ def create_subgroups(df, sensitive_feature='sex', label='income'):
     
     # Create 4 subgroups
     subgroups = {
-        'g1': df[(df[sensitive_feature] == 1) & (df[label] == 0)].copy(),  # Z=1, Y=0
-        'g2': df[(df[sensitive_feature] == 1) & (df[label] == 1)].copy(),  # Z=1, Y=1
-        'g3': df[(df[sensitive_feature] == 0) & (df[label] == 0)].copy(),  # Z=0, Y=0
-        'g4': df[(df[sensitive_feature] == 0) & (df[label] == 1)].copy(),  # Z=0, Y=1
+        'g10': df[(df[sensitive_feature] == 1) & (df[label] == 0)].copy(),  # Z=1, Y=0
+        'g11': df[(df[sensitive_feature] == 1) & (df[label] == 1)].copy(),  # Z=1, Y=1
+        'g00': df[(df[sensitive_feature] == 0) & (df[label] == 0)].copy(),  # Z=0, Y=0
+        'g01': df[(df[sensitive_feature] == 0) & (df[label] == 1)].copy(),  # Z=0, Y=1
     }
     
     return subgroups

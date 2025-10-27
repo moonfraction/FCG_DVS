@@ -128,6 +128,7 @@ def llm_predict(prompt, model="llama-3.1-8b-instant", temperature=0.1, max_retri
             elif "less than or equal to 50k" in prediction_text or "<=50k" in prediction_text:
                 return 0
             else:
+                logger.warning(f"  Unclear prediction: {prediction_text}")
                 # Default to 0 if unclear
                 return 0
                 

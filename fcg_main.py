@@ -78,7 +78,7 @@ class FCGAlgorithm:
         """
         Load and split Adult dataset
         """
-        logger.info("\n" + "="*60)
+        logger.info("="*60)
         logger.info("LOADING DATA")
         logger.info("="*60)
         
@@ -94,7 +94,7 @@ class FCGAlgorithm:
         logger.info(f"Test samples:     {len(self.test_data)}")
         
         # Create subgroups from training data
-        logger.info("\nCreating subgroups based on sensitive feature and label...")
+        logger.info("Creating subgroups based on sensitive feature and label...")
         subgroups_raw = create_subgroups(
             self.train_data, 
             sensitive_feature=self.sensitive_feature,
@@ -102,12 +102,19 @@ class FCGAlgorithm:
         )
         
         # Convert to Subgroup objects
+        key_aliases = {
+            'g10': 'g1 (Z=1,Y=0)',
+            'g11': 'g2 (Z=1,Y=1)',
+            'g00': 'g3 (Z=0,Y=0)',
+            'g01': 'g4 (Z=0,Y=1)'
+        }
+
         self.subgroups = {}
         for key, df in subgroups_raw.items():
             z_val = 1 if '1' in key[1] else 0  # Extract Z value from key
             y_val = int(key[-1])  # Extract Y value from key
             self.subgroups[key] = Subgroup(df, z_val, y_val, initial_score=self.p)
-            logger.info(f"  {key}: {len(df)} samples (Z={z_val}, Y={y_val})")
+            logger.info(f"  {key_aliases[key]}: {len(df)} samples (Z={z_val}, Y={y_val})")
         
         return self.train_data, self.dev_data, self.test_data
     
@@ -119,7 +126,7 @@ class FCGAlgorithm:
             raise ValueError("Must call load_data() before fit()")
         
         # STEP 1: Diverse Clustering
-        logger.info("\n" + "="*60)
+        logger.info("="*60)
         logger.info("STEP 1: DIVERSE CLUSTERING")
         logger.info("="*60)
         self.evolved_subgroups = step1_diverse_clustering(
@@ -127,6 +134,10 @@ class FCGAlgorithm:
             n_clusters=self.n_clusters,
             m_neighbors=self.m_neighbors
         )
+
+        logger.info("Clustered subgroup sizes:")
+        for key in self.evolved_subgroups:
+            logger.info(f"{key}: {len(self.evolved_subgroups[key])} samples")  # DEBUGGING LINE
         
         # STEP 2: Update Evolution Score
         self.evolved_subgroups = step2_update_evol_score(
@@ -157,7 +168,7 @@ class FCGAlgorithm:
         if k_per_subgroup is None:
             k_per_subgroup = self.k_shots
         
-        logger.info("\n" + "="*60)
+        logger.info("="*60)
         logger.info("SELECTING TOP DEMONSTRATIONS")
         logger.info("="*60)
         
@@ -186,7 +197,7 @@ class FCGAlgorithm:
         if self.top_demonstrations is None:
             raise ValueError("Must call select_demonstrations() before evaluate()")
         
-        logger.info("\n" + "="*60)
+        logger.info("="*60)
         logger.info("EVALUATION ON TEST DATA")
         logger.info("="*60)
         
@@ -214,7 +225,7 @@ class FCGAlgorithm:
         print_metrics(fcg_metrics, prefix="FCG ")
         
         # Comparison
-        logger.info("\n" + "="*60)
+        logger.info("="*60)
         logger.info("IMPROVEMENT OVER BASELINE")
         logger.info("="*60)
         logger.info(f"Accuracy:  {fcg_metrics['accuracy'] - zero_metrics['accuracy']:+.4f}")
@@ -241,7 +252,7 @@ def run_fcg_experiment(n_clusters=8, m_neighbors=5, k_shots=5, iterations=10,
         max_dev_samples: Max dev samples per evaluation
         max_test_samples: Max test samples for final evaluation
     """
-    logger.info("\n" + "="*60)
+    logger.info("="*60)
     logger.info("FCG ALGORITHM EXPERIMENT")
     logger.info("Fairness via Clustering-Genetic for LLM Bias Mitigation")
     logger.info("="*60)

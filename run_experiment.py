@@ -28,7 +28,7 @@ def main():
         max_test_samples=50     # Reduced for quick testing (use 100+ for full)
     )
     
-    logger.info("\n" + "="*60)
+    logger.info("="*60)
     logger.info("EXPERIMENT COMPLETE!")
     logger.info("="*60)
     logger.info("\nKey Results:")

@@ -37,12 +37,12 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
     Returns:
         Updated subgroups_dict with evolved scores
     """
-    logger.info("\n" + "="*60)
+    logger.info("="*60)
     logger.info("STEP 2: UPDATE EVOLUTION SCORE")
     logger.info("="*60)
     
     for subgroup_key, subgroup in subgroups_dict.items():
-        logger.info(f"\nProcessing {subgroup_key}: {len(subgroup)} samples")
+        logger.info(f"Processing {subgroup_key}: {len(subgroup)} samples")
         logger.info(f"  Running {iterations} iterations with k={k_shots} shots")
         
         # Skip if subgroup is empty or too small
@@ -61,7 +61,7 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
         
         # Run genetic algorithm iterations
         for iteration in range(iterations):
-            logger.info(f"\n  Iteration {iteration + 1}/{iterations}:")
+            logger.info(f"  Iteration {iteration + 1}/{iterations}:")
             
             # Select k demonstration samples using roulette wheel
             selected_indices = roulette_wheel_selection(subgroup, k_shots_actual)
@@ -74,6 +74,8 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
             selected_samples = subgroup.df.iloc[selected_indices]
             
             logger.info(f"    Selected {len(selected_indices)} samples: {selected_indices}")
+            for idx in selected_indices:
+                logger.info(f"      Sample index: {idx}, Current score: {subgroup.scores[idx]:.4f}")
             
             # Calculate evolution score
             evol_score = cal_score_cached(

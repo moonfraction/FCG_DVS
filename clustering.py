@@ -96,6 +96,6 @@ def step1_diverse_clustering(subgroups_dict, n_clusters=8, m_neighbors=5):
         
         selected_subgroups[key] = selected_subgroup
         
-    logger.info(f"  Selected {len(selected_indices)} diverse samples from {key}")
+        logger.info(f"  Selected {len(selected_indices)} diverse samples from {key}")
     
     return selected_subgroups
