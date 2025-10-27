@@ -300,7 +300,7 @@ Groq API (via OpenAI SDK)
 ├─ base_url: "https://api.groq.com/openai/v1"
 ├─ api_key: from .env (GROQ_API_KEY)
 ├─ model: "llama-3.1-8b-instant"
-├─ temperature: 0.1
+├─ temperature: 0.0
 └─ max_tokens: 50
 
 Request Flow:

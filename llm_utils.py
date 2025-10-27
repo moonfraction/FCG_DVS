@@ -96,7 +96,7 @@ def create_prompt(demonstrations=None, test_sample=None):
     return prompt
 
 
-def llm_predict(prompt, model="llama-3.1-8b-instant", temperature=0.1, max_retries=3):
+def llm_predict(prompt, model="llama-3.1-8b-instant", temperature=0.0, max_retries=3):
     """
     Get prediction from LLM via Groq API
     
