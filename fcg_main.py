@@ -183,7 +183,7 @@ class FCGAlgorithm:
         # Combine all demonstrations
         self.top_demonstrations = pd.concat(self.top_demonstrations, ignore_index=True)
         
-        logger.info(f"\nTotal demonstrations selected: {len(self.top_demonstrations)}")
+        logger.info(f"Total demonstrations selected: {len(self.top_demonstrations)}")
         
         return self.top_demonstrations
     
@@ -208,13 +208,13 @@ class FCGAlgorithm:
         z_sensitive = test_subset[self.sensitive_feature].values
         
         # Zero-shot baseline
-        logger.info("\n1. Zero-shot Baseline:")
+        logger.info("1. Zero-shot Baseline:")
         y_zero = llm_predict_zero_shot(test_subset, model=self.model, max_samples=max_test_samples)
         zero_metrics = evaluate_all_metrics(y_true, y_zero, z_sensitive)
         print_metrics(zero_metrics, prefix="Zero-shot ")
         
         # FCG with demonstrations
-        logger.info("\n2. FCG with In-Context Learning:")
+        logger.info("2. FCG with In-Context Learning:")
         y_fcg = llm_predict_few_shot(
             test_subset, 
             demonstrations=self.top_demonstrations,

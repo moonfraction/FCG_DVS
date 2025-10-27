@@ -73,7 +73,8 @@ def cal_score(selected_samples, dev_data, metric_pred='f1_score', metric_fair='r
     logger.info(f"    Base: {metric_pred}={base_pred:.4f}, {metric_fair}={base_fair:.4f}")
     logger.info(f"    ICL:  {metric_pred}={icl_pred:.4f}, {metric_fair}={icl_fair:.4f}")
     logger.info(f"    Δ:    Δpred={delta_pred:.4f}, Δfair={delta_fair:.4f}")
-    
+
+    # Return the evolution score
     return evol_score
 
 
@@ -102,26 +103,29 @@ def cal_score_cached(selected_samples, dev_data, baseline_cache=None,
     y_dev = dev_subset['income'].values
     z_dev = dev_subset['sex'].values
     
-    # Get or compute baseline
-    if baseline_cache is None or 'base_pred' not in baseline_cache:
+    # Ensure baseline_cache is a dict so we can populate it even when caller passed None
+    if baseline_cache is None:
+        baseline_cache = {}
+
+    # Get or compute baseline predictions and metrics
+    if 'base_pred' not in baseline_cache:
         logger.info("    Computing baseline (zero-shot) predictions...")
         y_base = llm_predict_zero_shot(dev_subset, model=model, max_samples=max_dev_samples)
-        
+
         from metrics import evaluate_all_metrics
         base_metrics = evaluate_all_metrics(y_dev, y_base, z_dev)
         base_pred = base_metrics.get(metric_pred, 0.0)
         base_fair = base_metrics.get(metric_fair, 0.0)
-        
-        # Update cache
-        if baseline_cache is not None:
-            baseline_cache['y_base'] = y_base
-            baseline_cache['base_metrics'] = base_metrics
-            baseline_cache['base_pred'] = base_pred
-            baseline_cache['base_fair'] = base_fair
+
+        # Populate cache so subsequent calls (in the same run) can reuse results
+        baseline_cache['y_base'] = y_base
+        baseline_cache['base_metrics'] = base_metrics
+        baseline_cache['base_pred'] = base_pred
+        baseline_cache['base_fair'] = base_fair
     else:
         # Use cached baseline
-        base_pred = baseline_cache['base_pred']
-        base_fair = baseline_cache['base_fair']
+        base_pred = baseline_cache.get('base_pred', 0.0)
+        base_fair = baseline_cache.get('base_fair', 0.0)
     
     # Get ICL predictions
     logger.info("    Computing ICL predictions with demonstrations...")
@@ -145,4 +149,5 @@ def cal_score_cached(selected_samples, dev_data, baseline_cache=None,
     logger.info(f"    ICL:  {metric_pred}={icl_pred:.4f}, {metric_fair}={icl_fair:.4f}")
     logger.info(f"    Δ:    Δpred={delta_pred:.4f}, Δfair={delta_fair:.4f}")
     
-    return evol_score
+    # Return the evolution score and the (possibly newly populated) baseline cache
+    return evol_score, baseline_cache

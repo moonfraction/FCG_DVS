@@ -77,8 +77,8 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
             for idx in selected_indices:
                 logger.info(f"      Sample index: {idx}, Current score: {subgroup.scores[idx]:.4f}")
             
-            # Calculate evolution score
-            evol_score = cal_score_cached(
+            # Calculate evolution score (also receive updated baseline_cache)
+            evol_score, baseline_cache = cal_score_cached(
                 selected_samples,
                 dev_data,
                 baseline_cache=baseline_cache,
@@ -97,7 +97,7 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
             logger.info(f"    Updated scores for samples: {selected_indices}")
         
         # Print final score distribution
-        logger.info(f"\n  Final score distribution for {subgroup_key}:")
+        logger.info(f"  Final score distribution for {subgroup_key}:")
         logger.info(f"    Mean:   {subgroup.scores.mean():.4f}")
         logger.info(f"    Std:    {subgroup.scores.std():.4f}")
         logger.info(f"    Min:    {subgroup.scores.min():.4f}")

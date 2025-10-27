@@ -23,19 +23,19 @@ def main():
         n_clusters=8,           # Number of K-Means clusters
         m_neighbors=5,          # Samples per cluster
         k_shots=5,              # Demonstration samples
-        iterations=5,           # Reduced for quick testing (use 10 for full)
-        max_dev_samples=30,     # Reduced for quick testing (use 50+ for full)
-        max_test_samples=50     # Reduced for quick testing (use 100+ for full)
+        iterations=3,           # Reduced for quick testing (use 10 for full)
+        max_dev_samples=20,     # Reduced for quick testing (use 50+ for full)
+        max_test_samples=30     # Reduced for quick testing (use 100+ for full)
     )
     
     logger.info("="*60)
     logger.info("EXPERIMENT COMPLETE!")
     logger.info("="*60)
-    logger.info("\nKey Results:")
+    logger.info("Key Results:")
     logger.info(f"Zero-shot F1-Score: {results['zero_shot']['f1_score']:.4f}")
     logger.info(f"FCG F1-Score:       {results['fcg']['f1_score']:.4f}")
     logger.info(f"Improvement:        {results['fcg']['f1_score'] - results['zero_shot']['f1_score']:+.4f}")
-    logger.info(f"\nZero-shot Δeo:      {results['zero_shot']['delta_eo']:.4f}")
+    logger.info(f"Zero-shot Δeo:      {results['zero_shot']['delta_eo']:.4f}")
     logger.info(f"FCG Δeo:            {results['fcg']['delta_eo']:.4f}")
     logger.info(f"Improvement:        {results['zero_shot']['delta_eo'] - results['fcg']['delta_eo']:+.4f} (lower is better)")
     
