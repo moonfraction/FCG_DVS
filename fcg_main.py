@@ -4,6 +4,8 @@ Fairness via Clustering-Genetic for LLM Bias Mitigation
 """
 import numpy as np
 import pandas as pd
+import os
+from datetime import datetime
 from data_utils import loadAdult, split_train_dev, create_subgroups, Subgroup
 from clustering import step1_diverse_clustering
 from evolution import step2_update_evol_score
@@ -13,6 +15,61 @@ from metrics import evaluate_all_metrics, print_metrics
 from logger_utils import get_logger
 
 logger = get_logger()
+
+
+def save_evaluation_results(results_dict, flag_dvs, config_info=None, output_dir="results"):
+    """
+    Save evaluation metrics to a timestamped CSV file
+    
+    Args:
+        results_dict: Dictionary with evaluation results (e.g., {'zero_shot': metrics, 'fcg': metrics})
+        config_info: Optional dictionary with configuration parameters
+        output_dir: Directory to save results (default: 'results')
+    
+    Returns:
+        Path to saved file
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Generate timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if flag_dvs:
+        filename = f"results_dvs_{timestamp}.csv"
+    else:
+        filename = f"results_{timestamp}.csv"
+    filepath = os.path.join(output_dir, filename)
+    
+    # Prepare data for CSV
+    rows = []
+    
+    # Add configuration info if provided
+    if config_info:
+        for key, value in config_info.items():
+            rows.append({
+                'type': 'config',
+                'method': key,
+                'metric': 'config_value',
+                'value': value
+            })
+    
+    # Add evaluation metrics
+    for method_name, metrics in results_dict.items():
+        if isinstance(metrics, dict):
+            for metric_name, metric_value in metrics.items():
+                rows.append({
+                    'type': 'evaluation',
+                    'method': method_name,
+                    'metric': metric_name,
+                    'value': metric_value
+                })
+    
+    # Create DataFrame and save
+    df = pd.DataFrame(rows)
+    df.to_csv(filepath, index=False)
+    
+    logger.info(f"Evaluation results saved to: {filepath}")
+    return filepath
 
 
 class FCGAlgorithm:
@@ -242,10 +299,28 @@ class FCGAlgorithm:
         logger.info(f"Δeo:       {zero_metrics['delta_eo'] - fcg_metrics['delta_eo']:+.4f} (lower is better)")
         logger.info(f"Reo:       {fcg_metrics['ratio_eo'] - zero_metrics['ratio_eo']:+.4f}")
         
-        return {
+        # Prepare results
+        results = {
             'zero_shot': zero_metrics,
             'fcg': fcg_metrics
         }
+        
+        # Save results to CSV
+        config_info = {
+            'n_clusters': self.n_clusters,
+            'm_neighbors': self.m_neighbors,
+            'k_shots': self.k_shots,
+            'iterations': self.iterations,
+            'alpha': self.alpha,
+            'p': self.p,
+            'model': self.model,
+            'max_test_samples': max_test_samples,
+            'metric_pred': self.metric_pred,
+            'metric_fair': self.metric_fair
+        }
+        save_evaluation_results(results, flag_dvs=False, config_info=config_info)
+        
+        return results
     
     def evaluate_with_dvs(self, max_test_samples=100, batch_size=10, k_neighbors=5, 
                          L_iterations=5, use_fcg_baseline=True):
@@ -385,6 +460,25 @@ class FCGAlgorithm:
             logger.info(f"F1-Score:  {dvs_metrics['f1_score'] - fcg_metrics['f1_score']:+.4f}")
             logger.info(f"Δeo:       {fcg_metrics['delta_eo'] - dvs_metrics['delta_eo']:+.4f} (lower is better)")
             logger.info(f"Reo:       {dvs_metrics['ratio_eo'] - fcg_metrics['ratio_eo']:+.4f}")
+        
+        # Save results to CSV
+        config_info = {
+            'n_clusters': self.n_clusters,
+            'm_neighbors': self.m_neighbors,
+            'k_shots': self.k_shots,
+            'iterations': self.iterations,
+            'alpha': self.alpha,
+            'p': self.p,
+            'model': self.model,
+            'max_test_samples': max_test_samples,
+            'batch_size': batch_size,
+            'k_neighbors': k_neighbors,
+            'L_iterations': L_iterations,
+            'metric_pred': self.metric_pred,
+            'metric_fair': self.metric_fair,
+            'use_fcg_baseline': use_fcg_baseline
+        }
+        save_evaluation_results(results, flag_dvs=True, config_info=config_info)
         
         return results
 
