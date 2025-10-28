@@ -34,14 +34,14 @@ CONFIG = {
     # Dataset parameters (KEEP SMALL FOR TESTING)
     'max_train_samples': None,      # Limit training data (None = use all)
     'dev_ratio': 0.2,              # Dev set ratio
-    'max_dev_samples': 50,          # Max dev samples per evaluation
-    'max_test_samples': 100,        # Max test samples
+    'max_dev_samples': 20,          # Max dev samples per evaluation
+    'max_test_samples': 80,        # Max test samples
     
     # FCG Phase 1 parameters
     'n_clusters': 8,               # Number of K-means clusters per subgroup
-    'm_neighbors': 10,              # Neighbors per cluster
-    'k_shots': 10,                  # Demonstrations per subgroup for FCG
-    'iterations': 2,               # Genetic evolution iterations
+    'm_neighbors': 5,              # Neighbors per cluster
+    'k_shots': 5,                  # Demonstrations per subgroup for FCG
+    'iterations': 5,               # Genetic evolution iterations
     'alpha': 0.5,                  # Balance: pred vs fairness
     'p': 0.05,                     # Initial score threshold
     'metric_pred': 'f1_score',     # Performance metric
@@ -52,7 +52,7 @@ CONFIG = {
     'test_dvs': True,              # Whether to test DVS phase
     'batch_size': 5,               # Test batch size (N)
     'k_neighbors': 5,              # Neighbors to retrieve per test sample
-    'L_iterations': 5,             # DVS refinement iterations
+    'L_iterations': 3,             # DVS refinement iterations
     
     # Testing options
     'save_metrics': True,         # Save metrics to files
@@ -65,61 +65,107 @@ CONFIG = {
 # ============================================================================
 
 def estimate_api_calls(config):
-    """Estimate total API calls and tokens for the configuration"""
+    """
+    Estimate total API calls and tokens for the configuration
     
-    # FCG Phase calls
-    fcg_baseline_calls = 4  # Once per subgroup (cached)
-    fcg_icl_calls = 4 * config['iterations'] * config['max_dev_samples']
-    fcg_test_calls = config['max_test_samples'] * 2  # zero-shot + few-shot
-    fcg_total = fcg_baseline_calls + fcg_icl_calls + fcg_test_calls
+    Token Calculation Method:
+    - Zero-shot: ~155 tokens (80 task desc + 60 sample + 10 output + 5 formatting)
+    - Few-shot: ~170 + (K × 70) tokens where K = number of demonstrations
+      * Each demo: ~70 tokens (60 sample + 5 label + 5 formatting)
+    - With k_shots per subgroup × 4 subgroups: K = k_shots × 4
     
-    # DVS Phase calls (if enabled)
+    Returns:
+        Dictionary with API call counts and token estimates
+    """
+    
+    # Calculate total demonstrations for ICL
+    total_demos = config['k_shots'] * 4  # 4 subgroups
+    
+    # Token formulas based on prompt analysis
+    tokens_per_zero_shot = 155
+    tokens_per_few_shot = 170 + (total_demos * 70)
+    
+    # FCG Phase 1: Evolution
+    # Baseline: zero-shot on dev set (computed once, cached)
+    fcg_baseline_calls = config['max_dev_samples']
+    fcg_baseline_tokens = fcg_baseline_calls * tokens_per_zero_shot
+    
+    # ICL: few-shot on dev set per iteration
+    fcg_evolution_calls = config['max_dev_samples'] * config['iterations']
+    fcg_evolution_tokens = fcg_evolution_calls * tokens_per_few_shot
+    
+    # FCG Phase 2: Test Evaluation
+    # Zero-shot + Few-shot on test set
+    fcg_test_zero_calls = config['max_test_samples']
+    fcg_test_zero_tokens = fcg_test_zero_calls * tokens_per_zero_shot
+    
+    fcg_test_few_calls = config['max_test_samples']
+    fcg_test_few_tokens = fcg_test_few_calls * tokens_per_few_shot
+    
+    fcg_test_calls = fcg_test_zero_calls + fcg_test_few_calls
+    fcg_test_tokens = fcg_test_zero_tokens + fcg_test_few_tokens
+    
+    # Total FCG
+    fcg_total_calls = fcg_baseline_calls + fcg_evolution_calls + fcg_test_calls
+    fcg_total_tokens = fcg_baseline_tokens + fcg_evolution_tokens + fcg_test_tokens
+    
+    # DVS Phase (if enabled)
     if config['test_dvs']:
+        # DVS Logic:
+        # - Total test samples divided into batches of size N (batch_size)
+        # - For each batch: N test samples × N candidates = N² predictions
+        # - This is repeated for L iterations
+        # - Each prediction uses k_neighbors demonstrations
+        
         n_batches = (config['max_test_samples'] + config['batch_size'] - 1) // config['batch_size']
-        # Per batch: L iterations * batch_size DVS samples * avg core set size + batch predictions
-        # Rough estimate: avg core set size ~ 2-3
-        calls_per_batch = config['L_iterations'] * config['batch_size'] * config['batch_size']  + config['batch_size']
-        dvs_total = int(n_batches * calls_per_batch)
+        batch_size = config['batch_size']
+        
+        dvs_demos = config['k_neighbors']
+        tokens_per_dvs_call = 170 + (dvs_demos * 70)
+        
+        # Total calls: n_batches × batch_size × batch_size × L_iterations
+        dvs_calls = n_batches * batch_size * batch_size * config['L_iterations']
+        dvs_tokens = dvs_calls * tokens_per_dvs_call
     else:
-        dvs_total = 0
+        dvs_calls = 0
+        dvs_tokens = 0
     
-    # Token estimation
-    # Rough estimates based on typical prompt sizes:
-    # - Zero-shot: ~500 tokens/call (instruction + sample)
-    # - Few-shot baseline: ~800 tokens/call (instruction + k demos + sample)
-    # - Few-shot ICL: ~1000 tokens/call (instruction + k demos + sample + evaluation)
-    # - DVS: ~1200 tokens/call (instruction + adaptive demos + sample)
+    # Grand totals
+    grand_total_calls = fcg_total_calls + dvs_calls
+    grand_total_tokens = fcg_total_tokens + dvs_tokens
     
-    tokens_per_zero_shot = 500
-    tokens_per_baseline = 800
-    tokens_per_icl = 1000
-    tokens_per_dvs = 1200
-    
-    # FCG token estimates
-    fcg_baseline_tokens = fcg_baseline_calls * tokens_per_baseline
-    fcg_icl_tokens = fcg_icl_calls * tokens_per_icl
-    fcg_test_tokens = config['max_test_samples'] * (tokens_per_zero_shot + tokens_per_baseline)
-    fcg_total_tokens = fcg_baseline_tokens + fcg_icl_tokens + fcg_test_tokens
-    
-    # DVS token estimates
-    if config['test_dvs']:
-        dvs_total_tokens = dvs_total * tokens_per_dvs
-    else:
-        dvs_total_tokens = 0
+    # Estimated cost (assuming $0.10 per 1M input tokens, $0.20 per 1M output tokens)
+    # Approximate: 95% input, 5% output
+    input_tokens = int(grand_total_tokens * 0.95)
+    output_tokens = int(grand_total_tokens * 0.05)
+    estimated_cost = (input_tokens * 0.10 + output_tokens * 0.20) / 1_000_000
     
     return {
-        'fcg_baseline': fcg_baseline_calls,
-        'fcg_icl': fcg_icl_calls,
-        'fcg_test': fcg_test_calls,
-        'fcg_total': fcg_total,
-        'dvs_total': dvs_total,
-        'grand_total': fcg_total + dvs_total,
+        # FCG Phase breakdown
+        'fcg_baseline_calls': fcg_baseline_calls,
         'fcg_baseline_tokens': fcg_baseline_tokens,
-        'fcg_icl_tokens': fcg_icl_tokens,
+        'fcg_evolution_calls': fcg_evolution_calls,
+        'fcg_evolution_tokens': fcg_evolution_tokens,
+        'fcg_test_calls': fcg_test_calls,
         'fcg_test_tokens': fcg_test_tokens,
+        'fcg_total_calls': fcg_total_calls,
         'fcg_total_tokens': fcg_total_tokens,
-        'dvs_total_tokens': dvs_total_tokens,
-        'grand_total_tokens': fcg_total_tokens + dvs_total_tokens
+        
+        # DVS Phase
+        'dvs_calls': dvs_calls,
+        'dvs_tokens': dvs_tokens,
+        
+        # Grand totals
+        'grand_total_calls': grand_total_calls,
+        'grand_total_tokens': grand_total_tokens,
+        
+        # Cost estimate
+        'estimated_cost_usd': estimated_cost,
+        
+        # Token calculation details
+        'tokens_per_zero_shot': tokens_per_zero_shot,
+        'tokens_per_few_shot': tokens_per_few_shot,
+        'total_demonstrations': total_demos
     }
 
 
@@ -158,18 +204,47 @@ def print_config(config):
     logger.info(f"  save_metrics:       {config['save_metrics']}")
     logger.info(f"  verbose:            {config['verbose']}")
     
-    # Estimate API calls
+    # Estimate API calls and tokens
     estimates = estimate_api_calls(config)
-    logger.info("\nEstimated API Calls:")
-    logger.info(f"  FCG baseline:       {estimates['fcg_baseline']}")
-    logger.info(f"  FCG ICL:            {estimates['fcg_icl']}")
-    logger.info(f"  FCG test:           {estimates['fcg_test']}")
-    logger.info(f"  FCG total:          {estimates['fcg_total']}")
+    
+    logger.info("\n" + "="*70)
+    logger.info("ESTIMATED API USAGE")
+    logger.info("="*70)
+    
+    logger.info("\nAPI Calls Breakdown:")
+    logger.info(f"  FCG baseline (zero-shot):  {estimates['fcg_baseline_calls']:>6} calls")
+    logger.info(f"  FCG evolution (ICL):       {estimates['fcg_evolution_calls']:>6} calls")
+    logger.info(f"  FCG test:                  {estimates['fcg_test_calls']:>6} calls")
+    logger.info(f"  FCG Phase Total:           {estimates['fcg_total_calls']:>6} calls")
+    
     if config['test_dvs']:
-        logger.info(f"  DVS total:          {estimates['dvs_total']}")
-        logger.info(f"  GRAND TOTAL:        {estimates['grand_total']}")
+        logger.info(f"  DVS Phase Total:           {estimates['dvs_calls']:>6} calls")
+        logger.info(f"  ─────────────────────────────────────")
+        logger.info(f"  GRAND TOTAL:               {estimates['grand_total_calls']:>6} calls")
     else:
-        logger.info(f"  GRAND TOTAL:        {estimates['fcg_total']}")
+        logger.info(f"  ─────────────────────────────────────")
+        logger.info(f"  GRAND TOTAL:               {estimates['fcg_total_calls']:>6} calls")
+    
+    logger.info("\nToken Estimates:")
+    logger.info(f"  Tokens per zero-shot call: {estimates['tokens_per_zero_shot']:>6} tokens")
+    logger.info(f"  Tokens per few-shot call:  {estimates['tokens_per_few_shot']:>6} tokens")
+    logger.info(f"    (with {estimates['total_demonstrations']} demonstrations)")
+    logger.info(f"")
+    logger.info(f"  FCG baseline tokens:       {estimates['fcg_baseline_tokens']:>9,} tokens")
+    logger.info(f"  FCG evolution tokens:      {estimates['fcg_evolution_tokens']:>9,} tokens")
+    logger.info(f"  FCG test tokens:           {estimates['fcg_test_tokens']:>9,} tokens")
+    logger.info(f"  FCG Phase Total:           {estimates['fcg_total_tokens']:>9,} tokens")
+    
+    if config['test_dvs']:
+        logger.info(f"  DVS Phase Total:           {estimates['dvs_tokens']:>9,} tokens")
+        logger.info(f"  ─────────────────────────────────────")
+        logger.info(f"  GRAND TOTAL:               {estimates['grand_total_tokens']:>9,} tokens")
+    else:
+        logger.info(f"  ─────────────────────────────────────")
+        logger.info(f"  GRAND TOTAL:               {estimates['fcg_total_tokens']:>9,} tokens")
+    
+    logger.info(f"\nEstimated Cost: ${estimates['estimated_cost_usd']:.4f} USD")
+    logger.info(f"  (Based on $0.10/1M input tokens, $0.20/1M output tokens)")
     
     logger.info("="*70)
 
@@ -427,22 +502,10 @@ if __name__ == "__main__":
     # print estimates
     print("\nEstimated Token Usage:")
     results = estimate_api_calls(CONFIG)
-    print(f"  FCG baseline calls:       {results['fcg_baseline']}")
-    print(f"  FCG ICL calls:            {results['fcg_icl']}")
-    print(f"  FCG test calls:           {results['fcg_test']}")
-    print(f"  FCG total calls:          {results['fcg_total']}")
-    if CONFIG['test_dvs']:
-        print(f"  DVS total calls:          {results['dvs_total']}")
-        print(f"  GRAND TOTAL calls:        {results['grand_total']}")
-    else:
-        print(f"  GRAND TOTAL calls:        {results['fcg_total']}")
-    print(f"\n  FCG total tokens:         {results['fcg_total_tokens']}")
-    if CONFIG['test_dvs']:
-        print(f"  DVS total tokens:         {results['dvs_total_tokens']}")
-        print(f"  GRAND TOTAL tokens:       {results['grand_total_tokens']}")
+    for key, value in results.items():
+        print(f"  {key}: {value}")
 
-    print("\nPress Ctrl+C to cancel, or Enter to continue...")
-    
+    print("\nPress Enter to start the test, or Ctrl+C to cancel...")    
     try:
         input()
     except KeyboardInterrupt:

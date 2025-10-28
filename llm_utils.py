@@ -24,9 +24,8 @@ logger = get_logger()
 api_keys_cerebreas = {
     "CEREBRAS_API_KEY_1": os.environ.get("CEREBRAS_API_KEY_1"),
     "CEREBRAS_API_KEY_2": os.environ.get("CEREBRAS_API_KEY_2"),
-    "CEREBRAS_API_KEY_3": os.environ.get("CEREBRAS_API_KEY_3"),
-    "CEREBRAS_API_KEY_safari": os.environ.get("CEREBRAS_API_KEY_safari"),
     "CEREBRAS_API_KEY_firefox": os.environ.get("CEREBRAS_API_KEY_firefox"),
+    "CEREBRAS_API_KEY_safari": os.environ.get("CEREBRAS_API_KEY_safari"),
     "CEREBRAS_API_KEY_brave": os.environ.get("CEREBRAS_API_KEY_brave")
 }
 # Placeholders for keys and client objects; initialized by init_llm_clients()
