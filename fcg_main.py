@@ -327,7 +327,7 @@ class FCGAlgorithm:
             'metric_fair': self.metric_fair,
             'random_seed': self.random_seed
         }
-        save_evaluation_results(results, config_info=config_info)
+        save_evaluation_results(results, flag_dvs=False, config_info=config_info)
         
         return results
     
@@ -488,7 +488,7 @@ class FCGAlgorithm:
             'use_fcg_baseline': use_fcg_baseline,
             'random_seed': self.random_seed
         }
-        save_evaluation_results(results, config_info=config_info)
+        save_evaluation_results(results, flag_dvs=True, config_info=config_info)
         
         return results
 
