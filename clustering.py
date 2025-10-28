@@ -88,7 +88,7 @@ def diverse_clustering(subgroup, n_clusters=8, m_neighbors=5, random_state=42):
     return selected_idx_set
 
 
-def step1_diverse_clustering(subgroups_dict, n_clusters=8, m_neighbors=5):
+def step1_diverse_clustering(subgroups_dict, n_clusters=8, m_neighbors=5, random_seed=42):
     """
     STEP 1: Apply diverse clustering to all subgroups
     
@@ -96,6 +96,7 @@ def step1_diverse_clustering(subgroups_dict, n_clusters=8, m_neighbors=5):
         subgroups_dict: Dictionary of Subgroup objects {g1, g2, g3, g4}
         n_clusters: Number of clusters (default: 8)
         m_neighbors: Number of neighbors per cluster (default: 5)
+        random_seed: Random seed for reproducibility (default: 42)
     
     Returns:
         Dictionary of subgroups with selected indices (SG')
@@ -105,8 +106,8 @@ def step1_diverse_clustering(subgroups_dict, n_clusters=8, m_neighbors=5):
     for key, subgroup in subgroups_dict.items():
         logger.info(f"Processing {key}: {len(subgroup)} samples")
         
-        # Apply diverse clustering
-        selected_indices = diverse_clustering(subgroup, n_clusters, m_neighbors)
+        # Apply diverse clustering with random seed
+        selected_indices = diverse_clustering(subgroup, n_clusters, m_neighbors, random_state=random_seed)
         
         # Create new subgroup with only selected samples
         selected_df = subgroup.df.iloc[selected_indices].reset_index(drop=True)

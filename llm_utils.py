@@ -22,8 +22,10 @@ logger = get_logger()
 
 
 api_keys_cerebreas = {
-    "CEREBRAS_API_KEY_2": os.environ.get("CEREBRAS_API_KEY_2"),
     "CEREBRAS_API_KEY_1": os.environ.get("CEREBRAS_API_KEY_1"),
+    "CEREBRAS_API_KEY_2": os.environ.get("CEREBRAS_API_KEY_2"),
+    "CEREBRAS_API_KEY_3": os.environ.get("CEREBRAS_API_KEY_3"),
+    "CEREBRAS_API_KEY_4": os.environ.get("CEREBRAS_API_KEY_4"),
     "CEREBRAS_API_KEY_firefox": os.environ.get("CEREBRAS_API_KEY_firefox"),
     "CEREBRAS_API_KEY_safari": os.environ.get("CEREBRAS_API_KEY_safari"),
     "CEREBRAS_API_KEY_brave": os.environ.get("CEREBRAS_API_KEY_brave")
@@ -163,7 +165,7 @@ def create_prompt(demonstrations=None, test_sample=None):
     return prompt
 
 
-def llm_predict(prompt, model="llama-3.1-8b-instant", temperature=0.0, max_retries=3, client_idx=0):
+def llm_predict(prompt, model="llama-3.1-8b-instant", temperature=0.0, max_retries=1, client_idx=0):
     """
     Get prediction from LLM using the current client index. If the current
     client fails for all `max_retries`, automatically switch to the next

@@ -92,7 +92,8 @@ class FCGAlgorithm:
                  sensitive_feature='sex',
                  label='income',
                  model="llama-3.1-8b-instant",
-                 max_dev_samples=50):
+                 max_dev_samples=50,
+                 random_seed=42):
         """
         Initialize FCG algorithm with hyperparameters
         
@@ -109,6 +110,7 @@ class FCGAlgorithm:
             label: Target label name (default: 'income')
             model: LLM model name
             max_dev_samples: Max dev samples per evaluation
+            random_seed: Random seed for reproducibility (default: 42)
         """
         self.n_clusters = n_clusters
         self.m_neighbors = m_neighbors
@@ -122,6 +124,7 @@ class FCGAlgorithm:
         self.label = label
         self.model = model
         self.max_dev_samples = max_dev_samples
+        self.random_seed = random_seed
         
         # Data storage
         self.train_data = None
@@ -142,13 +145,14 @@ class FCGAlgorithm:
         # Load Adult dataset
         dftr, dftst = loadAdult()
         
-        # Split training into train and dev
-        self.train_data, self.dev_data = split_train_dev(dftr, dev_ratio=dev_ratio)
+        # Split training into train and dev using the specified random seed
+        self.train_data, self.dev_data = split_train_dev(dftr, dev_ratio=dev_ratio, random_state=self.random_seed)
         self.test_data = dftst
         
         logger.info(f"Training samples: {len(self.train_data)}")
         logger.info(f"Dev samples:      {len(self.dev_data)}")
         logger.info(f"Test samples:     {len(self.test_data)}")
+        logger.info(f"Random seed:      {self.random_seed}")
         
         # Create subgroups from training data
         logger.info("Creating subgroups based on sensitive feature and label...")
@@ -189,7 +193,8 @@ class FCGAlgorithm:
         self.evolved_subgroups = step1_diverse_clustering(
             self.subgroups,
             n_clusters=self.n_clusters,
-            m_neighbors=self.m_neighbors
+            m_neighbors=self.m_neighbors,
+            random_seed=self.random_seed
         )
 
         logger.info("Clustered subgroup sizes:")
@@ -207,8 +212,11 @@ class FCGAlgorithm:
             alpha=self.alpha,
             p=self.p,
             model=self.model,
-            max_dev_samples=self.max_dev_samples
+            max_dev_samples=self.max_dev_samples,
+            random_seed=self.random_seed
         )
+        
+        logger.info("Evolution complete!")
         
         return self.evolved_subgroups
     
@@ -316,9 +324,10 @@ class FCGAlgorithm:
             'model': self.model,
             'max_test_samples': max_test_samples,
             'metric_pred': self.metric_pred,
-            'metric_fair': self.metric_fair
+            'metric_fair': self.metric_fair,
+            'random_seed': self.random_seed
         }
-        save_evaluation_results(results, flag_dvs=False, config_info=config_info)
+        save_evaluation_results(results, config_info=config_info)
         
         return results
     
@@ -476,9 +485,10 @@ class FCGAlgorithm:
             'L_iterations': L_iterations,
             'metric_pred': self.metric_pred,
             'metric_fair': self.metric_fair,
-            'use_fcg_baseline': use_fcg_baseline
+            'use_fcg_baseline': use_fcg_baseline,
+            'random_seed': self.random_seed
         }
-        save_evaluation_results(results, flag_dvs=True, config_info=config_info)
+        save_evaluation_results(results, config_info=config_info)
         
         return results
 

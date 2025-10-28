@@ -12,7 +12,7 @@ logger = get_logger()
 def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
                             metric_pred='f1_score', metric_fair='ratio_eo',
                             alpha=0.5, p=0.05, model="llama-3.1-8b-instant",
-                            max_dev_samples=50):
+                            max_dev_samples=50, random_seed=42):
     """
     STEP 2: Update evolution scores for all subgroups
     
@@ -33,6 +33,7 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
         p: Minimum score threshold
         model: LLM model name
         max_dev_samples: Max dev samples to use per evaluation
+        random_seed: Random seed for reproducibility (default: 42)
     
     Returns:
         Updated subgroups_dict with evolved scores
@@ -87,7 +88,8 @@ def step2_update_evol_score(subgroups_dict, dev_data, k_shots=5, iterations=10,
                 alpha=alpha,
                 p=p,
                 model=model,
-                max_dev_samples=max_dev_samples
+                max_dev_samples=max_dev_samples,
+                random_seed=random_seed
             )
 
             

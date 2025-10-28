@@ -82,7 +82,7 @@ def cal_score(selected_samples, dev_data, metric_pred='f1_score', metric_fair='r
 
 def cal_score_cached(selected_samples, dev_data, baseline_cache=None, 
                     metric_pred='f1_score', metric_fair='ratio_eo',
-                    alpha=0.5, p=0.05, model="llama-3.1-8b-instant", max_dev_samples=50):
+                    alpha=0.5, p=0.05, model="llama-3.1-8b-instant", max_dev_samples=50, random_seed=42):
     """
     Optimized version that caches baseline predictions to avoid redundant API calls
     
@@ -91,9 +91,10 @@ def cal_score_cached(selected_samples, dev_data, baseline_cache=None,
         dev_data: Development dataset
         baseline_cache: Dict containing cached baseline predictions and metrics
         (other args same as cal_score)
+        random_seed: Random seed for sampling (default: 42)
     
     Returns:
-        Evolution score (float)
+        Tuple of (evolution_score, baseline_cache)
     """
     # Limit dev samples for efficiency
     
@@ -105,7 +106,7 @@ def cal_score_cached(selected_samples, dev_data, baseline_cache=None,
     else:
         # Create new subset
         if len(dev_data) > max_dev_samples:
-            dev_subset = dev_data.sample(n=max_dev_samples, random_state=42)
+            dev_subset = dev_data.sample(n=max_dev_samples, random_state=random_seed)
         else:
             dev_subset = dev_data
         

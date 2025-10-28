@@ -31,6 +31,9 @@ logger = get_logger()
 # ============================================================================
 
 CONFIG = {
+    # Reproducibility
+    'random_seed': 42,             # Random seed for reproducibility (set to different value for different runs)
+    
     # Dataset parameters (KEEP SMALL FOR TESTING)
     'max_train_samples': None,      # Limit training data (None = use all)
     'dev_ratio': 0.2,              # Dev set ratio
@@ -176,6 +179,9 @@ def print_config(config):
     logger.info("TEST CONFIGURATION")
     logger.info("="*70)
     
+    logger.info("\nReproducibility:")
+    logger.info(f"  random_seed:        {config['random_seed']}")
+    
     logger.info("\nDataset Parameters:")
     logger.info(f"  max_train_samples:  {config['max_train_samples']}")
     logger.info(f"  dev_ratio:          {config['dev_ratio']}")
@@ -306,6 +312,10 @@ def test_fcg_phase(config):
     
     start_time = datetime.now()
     
+    # Set random seed for reproducibility
+    import numpy as np
+    np.random.seed(config['random_seed'])
+    
     # Initialize FCG algorithm
     fcg = FCGAlgorithm(
         n_clusters=config['n_clusters'],
@@ -317,7 +327,8 @@ def test_fcg_phase(config):
         metric_pred=config['metric_pred'],
         metric_fair=config['metric_fair'],
         model=config['model'],
-        max_dev_samples=config['max_dev_samples']
+        max_dev_samples=config['max_dev_samples'],
+        random_seed=config['random_seed']
     )
     
     # Load data with sample limit
@@ -493,6 +504,8 @@ if __name__ == "__main__":
     print("="*70)
     print("\nThis script tests the workflow with minimal configurations.")
     print("Edit the CONFIG dictionary at the top of this file to adjust parameters.")
+    print("\n💡 TIP: Change 'random_seed' in CONFIG to test with different data splits!")
+    print("   Examples: 42 (default), 123, 456, 789, 2024")
 
     #print config
     print("\nCurrent Test Configuration:")
@@ -518,6 +531,7 @@ if __name__ == "__main__":
     if fcg_instance is not None:
         print("\n✓ Test completed successfully!")
         print(f"Check the log file in res/ for detailed output.")
+        print(f"\n💡 To run with different random seed, edit CONFIG['random_seed'] and run again!")
     else:
         print("\n✗ Test failed. Check the log file for details.")
         sys.exit(1)
