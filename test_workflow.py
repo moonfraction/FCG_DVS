@@ -39,7 +39,7 @@ CONFIG = {
     
     # FCG Phase 1 parameters
     'n_clusters': 8,               # Number of K-means clusters per subgroup
-    'm_neighbors': 5,              # Neighbors per cluster
+    'm_neighbors': 10,              # Neighbors per cluster
     'k_shots': 5,                  # Demonstrations per subgroup for FCG
     'iterations': 5,               # Genetic evolution iterations
     'alpha': 0.5,                  # Balance: pred vs fairness
