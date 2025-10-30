@@ -32,19 +32,19 @@ logger = get_logger()
 
 CONFIG = {
     # Reproducibility
-    'random_seed': 42,             # Random seed for reproducibility (set to different value for different runs)
+    'random_seed': 20,             # Random seed for reproducibility (set to different value for different runs)
     
     # Dataset parameters (KEEP SMALL FOR TESTING)
     'max_train_samples': None,      # Limit training data (None = use all)
     'dev_ratio': 0.2,              # Dev set ratio
     'max_dev_samples': 20,          # Max dev samples per evaluation
-    'max_test_samples': 80,        # Max test samples
+    'max_test_samples': 200,        # Max test samples
     
     # FCG Phase 1 parameters
-    'n_clusters': 8,               # Number of K-means clusters per subgroup
+    'n_clusters': 10,               # Number of K-means clusters per subgroup
     'm_neighbors': 10,              # Neighbors per cluster
-    'k_shots': 5,                  # Demonstrations per subgroup for FCG
-    'iterations': 5,               # Genetic evolution iterations
+    'k_shots': 10,                  # Demonstrations per subgroup for FCG
+    'iterations': 10,               # Genetic evolution iterations
     'alpha': 0.5,                  # Balance: pred vs fairness
     'p': 0.05,                     # Initial score threshold
     'metric_pred': 'f1_score',     # Performance metric
@@ -53,10 +53,10 @@ CONFIG = {
     
     # DVS Phase 2 parameters (set test_dvs=True to enable)
     'test_dvs': True,              # Whether to test DVS phase
-    'batch_size': 5,               # Test batch size (N)
-    'k_neighbors': 5,              # Neighbors to retrieve per test sample
-    'L_iterations': 3,             # DVS refinement iterations
-    
+    'batch_size': 10,               # Test batch size (N)
+    'k_neighbors': 10,              # Neighbors to retrieve per test sample
+    'L_iterations': 5,               # DVS refinement iterations
+
     # Testing options
     'save_metrics': True,         # Save metrics to files
     'verbose': True,               # Extra logging

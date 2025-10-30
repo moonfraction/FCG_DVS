@@ -28,6 +28,10 @@ api_keys_cerebreas = {
     "CEREBRAS_API_KEY_4": os.environ.get("CEREBRAS_API_KEY_4"),
     "CEREBRAS_API_KEY_5": os.environ.get("CEREBRAS_API_KEY_5"),
     "CEREBRAS_API_KEY_6": os.environ.get("CEREBRAS_API_KEY_6"),
+    "CEREBRAS_API_KEY_7": os.environ.get("CEREBRAS_API_KEY_7"),
+    "CEREBRAS_API_KEY_8": os.environ.get("CEREBRAS_API_KEY_8"),
+    "CEREBRAS_API_KEY_9": os.environ.get("CEREBRAS_API_KEY_9"),
+    "CEREBRAS_API_KEY_10": os.environ.get("CEREBRAS_API_KEY_10"),
     "CEREBRAS_API_KEY_firefox": os.environ.get("CEREBRAS_API_KEY_firefox"),
     "CEREBRAS_API_KEY_safari": os.environ.get("CEREBRAS_API_KEY_safari"),
     "CEREBRAS_API_KEY_brave": os.environ.get("CEREBRAS_API_KEY_brave")
